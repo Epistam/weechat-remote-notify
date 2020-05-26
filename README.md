@@ -15,10 +15,19 @@ intend to use this plugin in a LAN or through a VPN. It should, however, be an
 expected future development.
 
 Thus, please note **all the network trafic caused by this plugin will be sent
-unencrypted** and thus perfectly readable to any attacker on the network. 
+unencrypted** and as such will be perfectly readable to any attacker on the
+network. 
 
 **USE AT YOUR OWN RISK.**
 
 ## Installation
 
 TODO.
+
+## Licensing
+
+## Ressources
+
+Useful links : 
+- [Weechat scripting reference](https://weechat.org/files/doc/devel/weechat_scripting.en.html)
+- ...
