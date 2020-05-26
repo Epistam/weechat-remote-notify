@@ -27,5 +27,5 @@ except:
     quit()
 
 # Test
-weechat.register("test_python", "FlashCode", "1.0", "GPL3", "Test script", "", "")
-weechat.prnt("", "Hello, from python script!")
+w.register("test_python", "FlashCode", "1.0", "GPL3", "Test script", "", "")
+w.prnt("", "Hello, from python script!")
