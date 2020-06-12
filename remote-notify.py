@@ -22,12 +22,14 @@
 #     v0.2: TCP connection between client and server-side plugin
 #     v0.3: Messages are sent to the client ; plugin detects TCP disconnection.
 #     v1.0: It just works!
+#     v1.1: Fixed messed up notifcations
 #
 # Description : 
 # This file is the plugin which needs to be loaded into Weechat. It will listen
 # for client connections and send notification data once it is established.
 # 
 # TODO :
+# - tej "Keepalive" à la fin de certains messages
 # - Limit to n first characters of a message
 # - Create a config file with options like : 
 #    - Listening port

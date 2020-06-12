@@ -22,6 +22,7 @@
 #     v0.2: TCP connection between client and server-side plugin
 #     v0.3: Messages are send to the client ; plugin detects TCP disconnection.
 #     v1.0: It just works!
+#     v1.1: Fixed messed up notifcations
 #
 # Description : 
 # This file is the client which needs to be run on the client computer. It will
@@ -54,6 +55,7 @@ while True :
         print('Sender : ' + sender)
         print('Message : ' + message)
 
-        os.system('notify-send ' + sender + ' ' + message + ' -t 5000')
+        cmd_string = 'notify-send -t 8000 "' + sender + '" "' + message + '"'
+        os.system(cmd_string)
 
 s.close()
