@@ -20,12 +20,14 @@
 #     v0.1: Message recovery, hooks and UNIX socket PoC
 # 2020-06-12 :
 #     v0.2: TCP connection between client and server-side plugin
+#     v0.3: Messages are send to the client ; plugin detects TCP disconnection.
 #
 # Description : 
 # This file is the plugin which needs to be loaded into Weechat. It will listen
 # for client connections and send notification data once it is established.
 # 
 # TODO :
+# - Send message sender along with message
 # - Create a config file with options like : 
 #    - Listening port
 #    - Socket path
@@ -62,82 +64,79 @@ def get_time() :
     currentDT = datetime.datetime.now()
     return str(currentDT.strftime("%Y-%m-%d %H:%M:%S")) + ' | '
 
-# Legacy listener from v0.1 : listens to the UNIX socket and throws messages to a /tmp/test.log.
-# Will be reused later.
-def listener(data) :
-    try:
-        os.remove(UNIX_SOCK_PATH)
-    except OSError:
-        pass
-
-    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    s.bind(UNIX_SOCK_PATH)
-    s.listen(1) # 1 simultaneous connections max
-
+def debug_log(debug_string) : 
     f = open("/tmp/test.log", "a")
-    f.write(get_time() + 'LISTENER LOG START =============' + '\r\n')
+    f.write(get_time() + debug_string + '\r\n')
     f.close()
-
-    conn = None
-
-    while True :
-        f = open("/tmp/test.log", "a")                                      #LOG
-        conn, addr = s.accept()
-        f.write(get_time() + 'Connection accepted.\r\n')                    #LOG
-        try :
-            data = conn.recv(4096)
-            f.write(get_time() + ' - Message : ')                           #LOG
-            f.write(data + '\r\n')                                          #LOG
-        except Exception as e :
-            f.write(e + '\r\n' + get_time() + 'Connection closed.\r\n')     #LOG
-            pass
-        f.close()
-
-    return ""
 
 # Listens to incoming network connections. Once connection is established with
 # the client, it will listen on the local UNIX socket and forward messages as
 # notifications over the network.
-# 
-# As of v0.2, it just pings periodically the client until the client closes connection.
 def tcp_listener(data) :
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('0.0.0.0', TCP_PORT))
-    s.listen(1) # 1 simultaneous connections max
-
-    f = open("/tmp/test.log", "a")                                          #LOG
-    f.write(get_time() + 'LISTENER LOG START =============' + '\r\n')       #LOG
-    f.close()                                                               #LOG
-
-    conn = None
+    # Binding TCP socket
+    tcp_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_s.bind(('0.0.0.0', TCP_PORT))
+    tcp_s.listen(1) # 1 simultaneous connections max
+    
+    # Binding UNIX socket
+    try:
+        os.remove(UNIX_SOCK_PATH)
+    except OSError:
+        pass
+    unix_s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    unix_s.bind(UNIX_SOCK_PATH)
+    unix_s.listen(1) # 1 simultaneous connections max
+    unix_s.settimeout(1) # accept() timeout set on 1 second
+    
+    debug_log('LISTENER LOG START =============')
+    
+    # Put conncetions in the function scope
+    tconn = None
+    uconn = None
 
     while True :
-        f = open("/tmp/test.log", "a")                                      #LOG
-        conn, addr = s.accept()
-        f.write(get_time() + 'TCP connection accepted.\r\n')                #LOG
-        f.close()
-        try :
-            # Receive greetings from the client, useful when we'll want some kind of auth
-            #data = conn.recv(4096)
-            
-            # Listen on the UNIX socket as long as TCP conn is alive
-            # In v0.2, just loop and send a ping every second
-            while True : 
-                f = open("/tmp/test.log", "a")                              #LOG
-                f.write(get_time() + '\tSending ping.\r\n')                 #LOG
-                conn.send(b'I am potato')
-                time.sleep(1)
-                f.close()                                                   #LOG
-        
-        # When the client closes connection, we are back out of the try block
+        tconn, taddr = tcp_s.accept() # Waiting for client connection
+        debug_log('TCP connection accepted.')
+        # This block catches exceptions related to the TCP socket
+        # If an exception is raised, it means the socket is dead somehow and the plugin needs
+        # to wait for a TCP connection again.
+        try : 
+            while True :
+                # This block handles UNIX socket exceptions.
+                # The UNIX socket is set to timeout at 1s, so that we can check if the TCP
+                # connection is still alive every so often.
+                try : 
+                    # Throws a timeout exception when it times out
+                    uconn, uaddr = unix_s.accept()
+
+                    # If we get this far, there has been a connection on the UNIX socket.
+
+                    # Receive UNIX socket data an store it in a buffer
+                    data = uconn.recv(4096)
+                    debug_log('\tMessage received : ' + data)
+
+                    # Forward the buffer to the client via the TCP connection
+                    # Edge case : the TCP connection breaks before than : in this case,
+                    # this will throw an exception, and move on the keepalive which will cascade
+                    # back to the bigger "try" block.
+                    tconn.send(data)
+                    debug_log('\tMessage sent to client.')
+                    
+                    # The hook will have closed the connection, so we'll close it here too 
+                    # to clean things up.
+                    uconn.close()
+                except Exception as e : 
+                    pass
+
+                # This check keepalive checks if the TCP connection is still alive.
+                # If not, it will raise an exception which will be caught outside of the loop.
+                tconn.send(b'Keepalive')
+
         except Exception as e :
+            tconn.close()
+            debug_log('TCP connection closed.')
             pass
-        # Close connection for good measure
-        conn.close()
-        f = open("/tmp/test.log", "a")                                      #LOG
-        f.write(get_time() + 'TCP connection closed.\r\n')                  #LOG
-        f.close()                                                           #LOG
 
     return ""
 
@@ -145,9 +144,15 @@ def tcp_listener(data) :
 def hook_print_callback(data, buffer, date, tags, displayed, highlight, prefix, message) :
 
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    s.connect(UNIX_SOCK_PATH)
-    
-    s.send(message)
+    # s.connect() doesn't seem to return an exception, just blocks waiting for connection apparently
+    s.settimeout(1) 
+    try :
+        debug_log('HOOK : Trying to connect to UNIX socket.')
+        s.connect(UNIX_SOCK_PATH)
+        s.send(message)
+    except Exception as e :
+        debug_log('HOOK : UNIX socket is unavailable. Dismissing message.')
+        pass
 
     s.close()
 

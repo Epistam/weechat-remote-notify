@@ -20,21 +20,23 @@
 #     v0.1: Message recovery, hooks and UNIX socket PoC
 # 2020-06-12 :
 #     v0.2: TCP connection between client and server-side plugin
+#     v0.3: Messages are send to the client ; plugin detects TCP disconnection.
 #
 # Description : 
 # This file is the client which needs to be run on the client computer. It will
 # receive notification data from the Weechat plugin over the network, and
 # generate the notifyd notifications using notifyd-send.
 
+# TODO : 
+#   - add actual notifications
+#   - read remote IP from config or from CLI arguments
+#   - keep retrying to connect every so often when distant connection is broken
+#   - send notifcation saying it was disconnected
+
 import time
 import socket
 import os
 import datetime
-
-# keep retrying to connect every so often when distant connection is broken
-# send notifcation saying it was disconnected
-
-# read from config file / bind 192.168.0.13 and not localhost
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect(('192.168.0.13', 42000))
