@@ -24,6 +24,13 @@ network.
 
 TODO.
 
+## Structure
+The program is made up of two files : 
+- `remote-notify.py`, which is meant to be run as a plugin by Weechat
+- `remote-notify-client.py, which is meant to be run on the "client machine", i.e the one supposed to receive the notifications. 
+
+`remote-notify.py` works by creating a 
+
 ## Licensing
 
 ## Ressources
