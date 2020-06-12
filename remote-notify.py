@@ -20,14 +20,15 @@
 #     v0.1: Message recovery, hooks and UNIX socket PoC
 # 2020-06-12 :
 #     v0.2: TCP connection between client and server-side plugin
-#     v0.3: Messages are send to the client ; plugin detects TCP disconnection.
+#     v0.3: Messages are sent to the client ; plugin detects TCP disconnection.
+#     v1.0: It just works!
 #
 # Description : 
 # This file is the plugin which needs to be loaded into Weechat. It will listen
 # for client connections and send notification data once it is established.
 # 
 # TODO :
-# - Send message sender along with message
+# - Limit to n first characters of a message
 # - Create a config file with options like : 
 #    - Listening port
 #    - Socket path
@@ -44,6 +45,7 @@ import datetime
 UNIX_SOCK_PATH = '/tmp/weechat-notify-remote.sock'
 TCP_PORT = 42000
 WNR_PREFIX = '[WNR] '
+SERVER_NAME = 'localhost'
 
 ################################################################################################
 
@@ -143,18 +145,23 @@ def tcp_listener(data) :
 # Sends the message to the listener upon line printing
 def hook_print_callback(data, buffer, date, tags, displayed, highlight, prefix, message) :
 
-    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    # s.connect() doesn't seem to return an exception, just blocks waiting for connection apparently
-    s.settimeout(1) 
-    try :
-        debug_log('HOOK : Trying to connect to UNIX socket.')
-        s.connect(UNIX_SOCK_PATH)
-        s.send(message)
-    except Exception as e :
-        debug_log('HOOK : UNIX socket is unavailable. Dismissing message.')
-        pass
+    if weechat.info_get("irc_nick", SERVER_NAME) not in prefix :
 
-    s.close()
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sent_string = ""
+
+        # s.connect() doesn't seem to return an exception, just blocks waiting for connection apparently
+        s.settimeout(1) 
+        try :
+            debug_log('HOOK : Trying to connect to UNIX socket.')
+            s.connect(UNIX_SOCK_PATH)
+            sent_string = prefix + chr(31) + message # Using ASCII unit separator
+            s.send(sent_string)
+        except Exception as e :
+            debug_log('HOOK : UNIX socket is unavailable. Dismissing message.')
+            pass
+
+        s.close()
 
     return weechat.WEECHAT_RC_OK
 
