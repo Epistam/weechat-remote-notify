@@ -23,6 +23,10 @@
 #     v0.3: Messages are send to the client ; plugin detects TCP disconnection.
 #     v1.0: It just works!
 #     v1.1: Fixed messed up notifcations
+# 2020-06-13 :
+#     v1.2 : Fixed notifications stacking up in notifications list to the point
+#            where it's full and they are no longer displayed.
+#            --hint and the transient option don't appear in help :'( 
 #
 # Description : 
 # This file is the client which needs to be run on the client computer. It will
@@ -55,7 +59,7 @@ while True :
         print('Sender : ' + sender)
         print('Message : ' + message)
 
-        cmd_string = 'notify-send -t 8000 "' + sender + '" "' + message + '"'
+        cmd_string = 'notify-send --hint int:transient:1 -t 8000 "' + sender + '" "' + message + '"'
         os.system(cmd_string)
 
 s.close()
