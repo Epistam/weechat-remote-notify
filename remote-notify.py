@@ -23,6 +23,10 @@
 #     v0.3: Messages are sent to the client ; plugin detects TCP disconnection.
 #     v1.0: It just works!
 #     v1.1: Fixed messed up notifcations
+# 2020-06-13 :
+#     v1.2 : Fixed notifications stacking up in notifications list to the point
+#            where it's full and they are no longer displayed.
+#     v1.3 : Downloads pics to directory for easier visualization
 #
 # Description : 
 # This file is the plugin which needs to be loaded into Weechat. It will listen
@@ -157,7 +161,7 @@ def hook_print_callback(data, buffer, date, tags, displayed, highlight, prefix, 
         try :
             debug_log('HOOK : Trying to connect to UNIX socket.')
             s.connect(UNIX_SOCK_PATH)
-            sent_string = prefix + chr(31) + message # Using ASCII unit separator
+            sent_string = prefix + chr(31) + message + '\n' # Using ASCII unit separator
             s.send(sent_string)
         except Exception as e :
             debug_log('HOOK : UNIX socket is unavailable. Dismissing message.')

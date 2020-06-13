@@ -26,7 +26,7 @@
 # 2020-06-13 :
 #     v1.2 : Fixed notifications stacking up in notifications list to the point
 #            where it's full and they are no longer displayed.
-#            --hint and the transient option don't appear in help :'( 
+#     v1.3 : Downloads pics to directory for easier visualization
 #
 # Description : 
 # This file is the client which needs to be run on the client computer. It will
@@ -45,6 +45,21 @@ import time
 import socket
 import os
 import datetime
+import subprocess
+import datetime as d
+import re
+
+IMG_PREFIX = '/tmp/weechat-remote-notify/'
+
+try:
+    os.mkdir(IMG_PREFIX)
+except OSError:
+    pass
+
+#regex = r'http.?:\/\/.+?\.+j?p[ne]?g.*?(?=\s)' # v1, would only return the link
+regex = r'(http.?:\/\/.*?\.(png|jpg|jpeg).*?(?=\s))' # 2 capturing groups : one for the whole link, one for extension
+
+###########################################################
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect(('192.168.0.13', 42000))
@@ -56,6 +71,11 @@ while True :
         sender = data.decode("utf-8").split(chr(31))[0]
         message = data.decode("utf-8").split(chr(31))[1]
 
+        # Images download
+        links = re.findall(regex, message)
+        [subprocess.Popen(['wget', link[0], '-O', str(IMG_PREFIX + str(d.datetime.now()).replace(" ", "_") + '_' + sender + '.' + link[1])]) for link in links]
+
+        # Message processing
         print('Sender : ' + sender)
         print('Message : ' + message)
 
