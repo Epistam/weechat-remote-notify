@@ -26,15 +26,23 @@ TODO.
 
 ## Structure
 The program is made up of two files : 
-- `remote-notify.py`, which is meant to be run as a plugin by Weechat
-- `remote-notify-client.py, which is meant to be run on the "client machine", i.e the one supposed to receive the notifications. 
+- `remote-notify.py`, which is meant to be run as a plugin by Weechat. It works
+  by creating a launch a thread which will listen to incoming TCP connections.
+  In parallel, the Weechat API will call a hook function every time a message
+  is to be displayed, sending it to the listener via UNIX socket.
+- `client.py, which is meant to be run on the "client machine", i.e the one
+  supposed to receive the notifications. It establishes connection to the
+  server / plugin running on Weechat, and basically forwards messages in the
+  form of Xorg notifications.
 
-`remote-notify.py` works by creating a 
 
 ## Licensing
+something something yada yada...
+Just slapped a GPLv3 on that, I guess I'll see what becomes of it later.
 
 ## Ressources
 
 Useful links : 
 - [Weechat scripting reference](https://weechat.org/files/doc/devel/weechat_scripting.en.html)
-- ...
+- [Weechat API documentation](https://weechat.org/files/doc/stable/weechat_plugin_api.en.html)
+- [Python sockets documentation](https://docs.python.org/3/library/socket.html)

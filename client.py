@@ -27,6 +27,8 @@
 #     v1.2 : Fixed notifications stacking up in notifications list to the point
 #            where it's full and they are no longer displayed.
 #     v1.3 : Downloads pics to directory for easier visualization
+# 2020-06-14 :
+#     v1.4 : client-side retries, README changes
 #
 # Description : 
 # This file is the client which needs to be run on the client computer. It will
@@ -34,6 +36,8 @@
 # generate the notifyd notifications using notifyd-send.
 
 # TODO : 
+#   - notifications aren't sent if X is restarted
+#   - implement retries when connection is broken
 #   - add fade time as parameter
 #   - filter out ignored prefix
 #   - read remote IP from config or from CLI arguments
@@ -61,25 +65,48 @@ regex = r'(http.?:\/\/.*?\.(png|jpg|jpeg).*?(?=\s))' # 2 capturing groups : one 
 
 ###########################################################
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect(('192.168.0.13', 42000))
-s.send(b"I like potatoes")
+# Print time neatly, mostly for debugging purposes
+def get_time() :
+    currentDT = datetime.datetime.now()
+    return str(currentDT.strftime("%Y-%m-%d %H:%M:%S")) + ' | '
+
+def debug_log(debug_object) : 
+    f = open("/tmp/remote-notify.log", "a")
+    f.write(get_time() + str(debug_object) + '\r\n')
+    f.close()
 
 while True :
-    data = s.recv(4096)
-    if data.decode("utf-8") != 'Keepalive' :
-        sender = data.decode("utf-8").split(chr(31))[0]
-        message = data.decode("utf-8").split(chr(31))[1]
+    try : 
+        debug_log('Trying to connect to the Weechat client...')
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(5) # This timeout is greater than the 1 server side
+        s.connect(('10.100.0.3', 42000)) # If connect times out, go to except and retry
+        debug_log('Connected.')
 
-        # Images download
-        links = re.findall(regex, message)
-        [subprocess.Popen(['wget', link[0], '-O', str(IMG_PREFIX + str(d.datetime.now()).replace(" ", "_") + '_' + sender + '.' + link[1])]) for link in links]
+        while True :
+                # If recv times out, go to except and retry
+                # It literally can't timeout if the connection is still up because the server
+                # keeps sending keepalives every second, as opposed to the 5s timeout
+                data = s.recv(4096) 
+                #debug_log('Went past recv / didn\'t timeout')
+                if data.decode("utf-8") != 'Keepalive' :
+                    sender = data.decode("utf-8").split(chr(31))[0]
+                    message = data.decode("utf-8").split(chr(31))[1]
 
-        # Message processing
-        print('Sender : ' + sender)
-        print('Message : ' + message)
+                    # Images download
+                    links = re.findall(regex, message)
+                    [subprocess.Popen(['wget', link[0], '-O', str(IMG_PREFIX + str(d.datetime.now()).replace(" ", "_") + '_' + sender + '.' + link[1])]) for link in links]
 
-        cmd_string = 'notify-send --hint int:transient:1 -t 8000 "' + sender + '" "' + message + '"'
-        os.system(cmd_string)
+                    # Message processing
+                    debug_log('Sender : ' + sender)
+                    debug_log('Message : ' + message)
+
+                    cmd_string = 'notify-send --hint int:transient:1 -t 8000 "' + sender + '" "' + message + '"'
+                    os.system(cmd_string)
+
+    except Exception as e :
+        debug_log('Connection timed out.')
+        s.close()
+        pass
 
 s.close()
